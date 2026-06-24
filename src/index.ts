@@ -3,11 +3,13 @@ import {
   registerCommand,
   runCommand,
   handlerLogin,
+  handlerRegister,
 } from "./commands";
 
-function main() {
+async function main() {
   const registry: CommandsRegistry = {};
   registerCommand(registry, "login", handlerLogin);
+  registerCommand(registry, "register", handlerRegister);
 
   const rawArgs = process.argv.slice(2);
 
@@ -20,11 +22,13 @@ function main() {
   const args = rawArgs.slice(1);
 
   try {
-    runCommand(registry, cmdName, ...args);
+    await runCommand(registry, cmdName, ...args);
   } catch (err) {
     console.error((err as Error).message);
     process.exit(1);
   }
+
+  process.exit(0);
 }
 
 main();
