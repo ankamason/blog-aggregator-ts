@@ -1,6 +1,15 @@
-import { setUser } from "./config";
+import { setUser, readConfig } from "./config";
+import {
+  createUser,
+  getUserByName,
+  resetUsers,
+  getUsers,
+  
+} from "./lib/db/queries/users";
 import { createUser, getUserByName } from "./lib/db/queries/users";
 import { createUser, getUserByName, resetUsers } from "./lib/db/queries/users";
+import { fetchFeed } from "./lib/rss";
+
 
 export type CommandHandler = (
   cmdName: string,
@@ -63,6 +72,23 @@ export async function handlerReset(
   }
 }
 
+export async function handlerUsers(
+  cmdName: string,
+  ...args: string[]
+): Promise<void> {
+  const users = await getUsers();
+  const config = readConfig();
+  const currentUser = config.currentUserName;
+
+  for (const user of users) {
+    if (user.name === currentUser) {
+      console.log(`* ${user.name} (current)`);
+    } else {
+      console.log(`* ${user.name}`);
+    }
+  }
+}
+
 export function registerCommand(
   registry: CommandsRegistry,
   cmdName: string,
@@ -81,4 +107,12 @@ export async function runCommand(
     throw new Error(`Unknown command: ${cmdName}`);
   }
   await handler(cmdName, ...args);
+}
+export async function handlerAgg(
+  cmdName: string,
+  ...args: string[]
+): Promise<void> {
+  const feedURL = "https://www.wagslane.dev/index.xml";
+  const feed = await fetchFeed(feedURL);
+  console.log(JSON.stringify(feed, null, 2));
 }
