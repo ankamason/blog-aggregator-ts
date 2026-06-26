@@ -8,6 +8,13 @@
       "when": 1782151246327,
       "tag": "0000_nosy_changeling",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782490516752,
+      "tag": "0001_marvelous_hellfire_club",
+      "breakpoints": true
     }
   ]
 }
