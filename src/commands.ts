@@ -11,6 +11,7 @@ import { createUser, getUserByName, resetUsers } from "./lib/db/queries/users";
 import { fetchFeed } from "./lib/rss";
 import { createFeed } from "./lib/db/queries/feeds";
 import type { Feed, User } from "./lib/db/schema";
+import { createFeed, getFeeds } from "./lib/db/queries/feeds";
 
 
 export type CommandHandler = (
@@ -154,4 +155,17 @@ export async function handlerAddFeed(
 
   console.log("Feed created successfully:");
   printFeed(feed, user);
+}
+export async function handlerFeeds(
+  cmdName: string,
+  ...args: string[]
+): Promise<void> {
+  const feeds = await getFeeds();
+
+  for (const feed of feeds) {
+    console.log(`Name:    ${feed.feedName}`);
+    console.log(`URL:     ${feed.feedURL}`);
+    console.log(`User:    ${feed.userName}`);
+    console.log("---");
+  }
 }
