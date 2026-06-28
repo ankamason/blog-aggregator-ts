@@ -13,6 +13,12 @@ import { createFeed } from "./lib/db/queries/feeds";
 import type { Feed, User } from "./lib/db/schema";
 import { createFeed, getFeeds } from "./lib/db/queries/feeds";
 
+import { createFeed, getFeeds, getFeedByURL } from "./lib/db/queries/feeds";
+import {
+  createFeedFollow,
+  getFeedFollowsForUser,
+} from "./lib/db/queries/feed_follows";
+
 
 export type CommandHandler = (
   cmdName: string,
@@ -140,22 +146,16 @@ export async function handlerAddFeed(
   const feedName = args[0];
   const feedURL = args[1];
 
-  const config = readConfig();
-  const currentUserName = config.currentUserName;
-  if (!currentUserName) {
-    throw new Error("no user is currently logged in");
-  }
-
-  const user = await getUserByName(currentUserName);
-  if (!user) {
-    throw new Error(`user ${currentUserName} not found`);
-  }
+  const user = await getCurrentUser();
 
   const feed = await createFeed(feedName, feedURL, user.id);
+  const followRecord = await createFeedFollow(user.id, feed.id);
 
   console.log("Feed created successfully:");
   printFeed(feed, user);
+  console.log(`Now following: ${followRecord.feedName} (user: ${followRecord.userName})`);
 }
+
 export async function handlerFeeds(
   cmdName: string,
   ...args: string[]
@@ -167,5 +167,52 @@ export async function handlerFeeds(
     console.log(`URL:     ${feed.feedURL}`);
     console.log(`User:    ${feed.userName}`);
     console.log("---");
+  }
+}
+async function getCurrentUser() {
+  const config = readConfig();
+  const currentUserName = config.currentUserName;
+  if (!currentUserName) {
+    throw new Error("no user is currently logged in");
+  }
+  const user = await getUserByName(currentUserName);
+  if (!user) {
+    throw new Error(`user ${currentUserName} not found`);
+  }
+  return user;
+}
+export async function handlerFollow(
+  cmdName: string,
+  ...args: string[]
+): Promise<void> {
+  if (args.length === 0) {
+    throw new Error("follow requires a feed url");
+  }
+
+  const url = args[0];
+  const user = await getCurrentUser();
+
+  const feed = await getFeedByURL(url);
+  if (!feed) {
+    throw new Error(`no feed found with url ${url}`);
+  }
+
+  const followRecord = await createFeedFollow(user.id, feed.id);
+
+  console.log(`Feed:  ${followRecord.feedName}`);
+  console.log(`User:  ${followRecord.userName}`);
+}
+
+export async function handlerFollowing(
+  cmdName: string,
+  ...args: string[]
+): Promise<void> {
+  const user = await getCurrentUser();
+
+  const follows = await getFeedFollowsForUser(user.id);
+
+  console.log(`Feeds followed by ${user.name}:`);
+  for (const follow of follows) {
+    console.log(`* ${follow.feedName}`);
   }
 }

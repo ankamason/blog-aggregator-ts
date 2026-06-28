@@ -9,6 +9,9 @@ import {
   handlerAgg,
   handlerAddFeed,
   handlerFeeds,
+  handlerFollow,
+  handlerFollowing,
+
 } from "./commands";
 
 async function main() {
@@ -20,6 +23,8 @@ async function main() {
   registerCommand(registry, "agg", handlerAgg);
   registerCommand(registry, "addfeed", handlerAddFeed);
   registerCommand(registry, "feeds", handlerFeeds);
+  registerCommand(registry, "follow", handlerFollow);
+  registerCommand(registry, "following", handlerFollowing);
 
   const rawArgs = process.argv.slice(2);
 
