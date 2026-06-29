@@ -46,6 +46,31 @@ export async function handlerLogin(
   console.log(`User has been set to: ${userName}`);
 }
 
+export type UserCommandHandler = (
+  cmdName: string,
+  user: User,
+  ...args: string[]
+) => Promise<void>;
+
+export function middlewareLoggedIn(
+  handler: UserCommandHandler,
+): CommandHandler {
+  return async (cmdName: string, ...args: string[]): Promise<void> => {
+    const config = readConfig();
+    const currentUserName = config.currentUserName;
+    if (!currentUserName) {
+      throw new Error("no user is currently logged in");
+    }
+
+    const user = await getUserByName(currentUserName);
+    if (!user) {
+      throw new Error(`user ${currentUserName} not found`);
+    }
+
+    await handler(cmdName, user, ...args);
+  };
+}
+
 export async function handlerRegister(
   cmdName: string,
   ...args: string[]
@@ -137,6 +162,7 @@ export function printFeed(feed: Feed, user: User): void {
 
 export async function handlerAddFeed(
   cmdName: string,
+  user: User,
   ...args: string[]
 ): Promise<void> {
   if (args.length < 2) {
@@ -145,8 +171,6 @@ export async function handlerAddFeed(
 
   const feedName = args[0];
   const feedURL = args[1];
-
-  const user = await getCurrentUser();
 
   const feed = await createFeed(feedName, feedURL, user.id);
   const followRecord = await createFeedFollow(user.id, feed.id);
@@ -183,6 +207,7 @@ async function getCurrentUser() {
 }
 export async function handlerFollow(
   cmdName: string,
+  user: User,
   ...args: string[]
 ): Promise<void> {
   if (args.length === 0) {
@@ -190,7 +215,6 @@ export async function handlerFollow(
   }
 
   const url = args[0];
-  const user = await getCurrentUser();
 
   const feed = await getFeedByURL(url);
   if (!feed) {
@@ -205,10 +229,9 @@ export async function handlerFollow(
 
 export async function handlerFollowing(
   cmdName: string,
+  user: User,
   ...args: string[]
 ): Promise<void> {
-  const user = await getCurrentUser();
-
   const follows = await getFeedFollowsForUser(user.id);
 
   console.log(`Feeds followed by ${user.name}:`);
