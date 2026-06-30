@@ -14,6 +14,7 @@ import {
   deleteFeedFollow,
 } from "./lib/db/queries/feed_follows";
 import { parseDuration, scrapeFeeds, handleError } from "./lib/scrape";
+import { getPostsForUser } from "./lib/db/queries/posts";
 
 
 export type CommandHandler = (
@@ -273,4 +274,38 @@ export async function handlerUnfollow(
   await deleteFeedFollow(user.id, feed.id);
 
   console.log(`${user.name} unfollowed ${feed.name}`);
+}
+export async function handlerBrowse(
+  cmdName: string,
+  user: User,
+  ...args: string[]
+): Promise<void> {
+  let limit = 2;
+  if (args.length > 0) {
+    const parsed = parseInt(args[0], 10);
+    if (!isNaN(parsed)) {
+      limit = parsed;
+    } else {
+      throw new Error(`invalid limit: ${args[0]}`);
+    }
+  }
+
+  const posts = await getPostsForUser(user.id, limit);
+
+  if (posts.length === 0) {
+    console.log("No posts found. Follow some feeds and run agg first!");
+    return;
+  }
+
+  console.log(`Found ${posts.length} posts for ${user.name}:\n`);
+  for (const post of posts) {
+    console.log(`${post.title}`);
+    console.log(`  Feed:      ${post.feedName}`);
+    console.log(`  Published: ${post.publishedAt}`);
+    console.log(`  URL:       ${post.url}`);
+    if (post.description) {
+      console.log(`  ${post.description}`);
+    }
+    console.log("");
+  }
 }

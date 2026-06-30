@@ -3,6 +3,7 @@ import {
   getNextFeedToFetch,
   markFeedFetched,
 } from "./db/queries/feeds";
+import { createPost } from "./db/queries/posts";
 
 export function parseDuration(durationStr: string): number {
   const regex = /^(\d+)(ms|s|m|h)$/;
@@ -31,6 +32,17 @@ export function parseDuration(durationStr: string): number {
   }
 }
 
+function parsePublishedAt(pubDate: string | undefined): Date | null {
+  if (!pubDate) {
+    return null;
+  }
+  const parsed = new Date(pubDate);
+  if (isNaN(parsed.getTime())) {
+    return null;
+  }
+  return parsed;
+}
+
 export async function scrapeFeeds() {
   const feed = await getNextFeedToFetch();
   if (!feed) {
@@ -42,10 +54,24 @@ export async function scrapeFeeds() {
 
   const rssFeed = await fetchFeed(feed.url);
 
-  console.log(`\nFeed: ${feed.name} (${feed.url})`);
+  console.log(`\nScraping feed: ${feed.name}`);
+  let savedCount = 0;
+
   for (const item of rssFeed.channel.item) {
-    console.log(` - ${item.title}`);
+    const post = await createPost({
+      title: item.title,
+      url: item.link,
+      description: item.description ?? null,
+      publishedAt: parsePublishedAt(item.pubDate),
+      feedId: feed.id,
+    });
+
+    if (post) {
+      savedCount++;
+    }
   }
+
+  console.log(`  Saved ${savedCount} new posts from ${feed.name}`);
 }
 
 export function handleError(err: unknown) {
