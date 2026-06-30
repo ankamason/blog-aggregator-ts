@@ -4,20 +4,16 @@ import {
   getUserByName,
   resetUsers,
   getUsers,
-  
 } from "./lib/db/queries/users";
-import { createUser, getUserByName } from "./lib/db/queries/users";
-import { createUser, getUserByName, resetUsers } from "./lib/db/queries/users";
 import { fetchFeed } from "./lib/rss";
-import { createFeed } from "./lib/db/queries/feeds";
 import type { Feed, User } from "./lib/db/schema";
-import { createFeed, getFeeds } from "./lib/db/queries/feeds";
-
 import { createFeed, getFeeds, getFeedByURL } from "./lib/db/queries/feeds";
 import {
   createFeedFollow,
   getFeedFollowsForUser,
+  deleteFeedFollow,
 } from "./lib/db/queries/feed_follows";
+import { parseDuration, scrapeFeeds, handleError } from "./lib/scrape";
 
 
 export type CommandHandler = (
@@ -142,14 +138,33 @@ export async function runCommand(
   }
   await handler(cmdName, ...args);
 }
+
 export async function handlerAgg(
   cmdName: string,
   ...args: string[]
 ): Promise<void> {
-  const feedURL = "https://www.wagslane.dev/index.xml";
-  const feed = await fetchFeed(feedURL);
-  console.log(JSON.stringify(feed, null, 2));
+  if (args.length === 0) {
+    throw new Error("agg requires a duration (e.g. 1s, 1m, 1h)");
+  }
+
+  const timeBetweenRequests = parseDuration(args[0]);
+  console.log(`Collecting feeds every ${args[0]}`);
+
+  scrapeFeeds().catch(handleError);
+
+  const interval = setInterval(() => {
+    scrapeFeeds().catch(handleError);
+  }, timeBetweenRequests);
+
+  await new Promise<void>((resolve) => {
+    process.on("SIGINT", () => {
+      console.log("Shutting down feed aggregator...");
+      clearInterval(interval);
+      resolve();
+    });
+  });
 }
+
 export function printFeed(feed: Feed, user: User): void {
   console.log(`Feed ID:       ${feed.id}`);
   console.log(`Created At:    ${feed.createdAt}`);
@@ -238,4 +253,24 @@ export async function handlerFollowing(
   for (const follow of follows) {
     console.log(`* ${follow.feedName}`);
   }
+}
+export async function handlerUnfollow(
+  cmdName: string,
+  user: User,
+  ...args: string[]
+): Promise<void> {
+  if (args.length === 0) {
+    throw new Error("unfollow requires a feed url");
+  }
+
+  const url = args[0];
+
+  const feed = await getFeedByURL(url);
+  if (!feed) {
+    throw new Error(`no feed found with url ${url}`);
+  }
+
+  await deleteFeedFollow(user.id, feed.id);
+
+  console.log(`${user.name} unfollowed ${feed.name}`);
 }
